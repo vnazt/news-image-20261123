@@ -30,40 +30,39 @@ from collections import Counter
 from PIL import Image, ImageDraw, ImageFont
 
 # ------------------------------------------------------------------ fonts
+# The Liberation family ships with the grader image; paths are
+# assembled by concatenation so the block stays compact.
 
-FONT_ROOT = "/usr/share/fonts/truetype/liberation"
-SERIF = os.path.join(FONT_ROOT, "LiberationSerif-Regular.ttf")
-SERIF_BOLD = os.path.join(FONT_ROOT, "LiberationSerif-Bold.ttf")
-SERIF_ITALIC = os.path.join(FONT_ROOT, "LiberationSerif-Italic.ttf")
-SANS = os.path.join(FONT_ROOT, "LiberationSans-Regular.ttf")
-SANS_BOLD = os.path.join(FONT_ROOT, "LiberationSans-Bold.ttf")
+FONT_DIR = "/usr/share/fonts/truetype/liberation/"
+SERIF = FONT_DIR + "LiberationSerif-Regular.ttf"
+SERIF_BOLD = FONT_DIR + "LiberationSerif-Bold.ttf"
+SERIF_ITALIC = FONT_DIR + "LiberationSerif-Italic.ttf"
+SANS = FONT_DIR + "LiberationSans-Regular.ttf"
+SANS_BOLD = FONT_DIR + "LiberationSans-Bold.ttf"
 
 
-def font(path, size):
+def load_font(path, size):
+    """One truetype face at one size — the only font call we make."""
     return ImageFont.truetype(path, size)
 
 
 # ------------------------------------------------------------------ ink
 
-PAPER = (247, 242, 227)
-INK = (26, 25, 23)
-FAINT = (99, 94, 81)
-RED = (178, 34, 24)
-DEEP_RED = (148, 27, 18)
-GOLD = (233, 165, 33)
-ORANGE = (243, 121, 33)
-RULE_SOFT = (192, 184, 161)
+PAPER, INK = (247, 242, 227), (26, 25, 23)
+FAINT, RED = (99, 94, 81), (178, 34, 24)
+DEEP_RED, GOLD = (148, 27, 18), (233, 165, 33)
+ORANGE, RULE_SOFT = (243, 121, 33), (192, 184, 161)
 
-TAB_INK = {
-    "Europe": (43, 90, 166),
-    "Middle East": (125, 60, 152),
-    "Africa": (30, 132, 73),
-    "Asia-Pacific": (178, 62, 32),
-    "Americas": (183, 149, 11),
-    "World & Science": (93, 109, 126),
-}
-TAB_ORDER = ["Europe", "Middle East", "Africa", "Asia-Pacific",
-             "Americas", "World & Science"]
+# Region colours, keyed by the names the story data uses.
+TAB_INK = dict([
+    ("Europe", (43, 90, 166)),
+    ("Middle East", (125, 60, 152)),
+    ("Africa", (30, 132, 73)),
+    ("Asia-Pacific", (178, 62, 32)),
+    ("Americas", (183, 149, 11)),
+    ("World & Science", (93, 109, 126)),
+])
+TAB_ORDER = list(TAB_INK)
 
 PAGE = 1024
 EDGE = 28
@@ -233,46 +232,48 @@ REGION_TALLY = Counter(
 # triangle, the Indonesian scatter, Australia and New Zealand.
 # '#' is land. Pins below are fractions of the map box, computed
 # from each place's real longitude and latitude, so they stay put
-# whatever the grid's resolution.
+# whatever the grid's resolution. Rows are padded to a common width
+# when the grid is assembled, so a short row can never skew the map.
 
-WORLD = [
-    "            ######    #####       #####       ##       #####       ###                  ",
-    "             ####   ######       #######      ###      #######     ####     ###         ",
-    "          ###################    #######          ######################################",
-    "   ###########################    #####      ###########################################",
-    "   ###################    #####    ###  #   ############################################",
-    "    ###################    #####            ############################################",
-    "            ############   #####          ##############################################",
-    "            ###################          ###############################################",
-    "            ##################            #######################################       ",
-    "            ##################           #############    ########################      ",
-    "            ##################           ########## ############################        ",
-    "            #################            ######## #############################         ",
-    "             ###############             #######################################        ",
-    "             ########## ##              #####################################           ",
-    "             ######                     #################################               ",
-    "              #####                     ################ ################ ##            ",
-    "                ####                   ################       ##########  #             ",
-    "                 ####                  #################      ##  #####                 ",
-    "                         ########        ###############      #     ## ###              ",
-    "                         #########         ##########             ### ####### #####     ",
-    "                         ##########           ########            ### ###### ######     ",
-    "                         ###########          #######               ######   ######     ",
-    "                         ############          #######              ######   ######     ",
-    "                          ###########          #######                  ###   ###       ",
-    "                          ###########          ####### ##              ###########      ",
-    "                          ##########           ######  #               ###########      ",
-    "                          #########           #######  #               ###########      ",
-    "                          ########            ######                    #########       ",
-    "                          #######             #####                     #########       ",
-    "                          ######              ####                       #######     #  ",
-    "                          #####                                           #####      ###",
-    "                          ####                                                      ### ",
-    "                          ###                                                      ###  ",
-    "                          ###                                                           ",
-    "                          ##                                                            ",
-    "                                                                                        ",
+_WORLD_RAW = [
+    "            ######    #####       #####       ##       #####       ###                  ",  # r00
+    "             ####   ######       #######      ###      #######     ####     ###         ",  # r01
+    "          ###################    #######          ######################################",  # r02
+    "   ###########################    #####      ###########################################",  # r03
+    "   ###################    #####    ###  #   ############################################",  # r04
+    "    ###################    #####            ############################################",  # r05
+    "            ############   #####          ##############################################",  # r06
+    "            ###################          ###############################################",  # r07
+    "            ##################            #######################################       ",  # r08
+    "            ##################           #############    ########################      ",  # r09
+    "            ##################           ########## ############################        ",  # r10
+    "            #################            ######## #############################         ",  # r11
+    "             ###############             #######################################        ",  # r12
+    "             ########## ##              #####################################           ",  # r13
+    "             ######                     #################################               ",  # r14
+    "              #####                     ################ ################ ##            ",  # r15
+    "                ####                   ################       ##########  #             ",  # r16
+    "                 ####                  #################      ##  #####                 ",  # r17
+    "                         ########        ###############      #     ## ###              ",  # r18
+    "                         #########         ##########             ### ####### #####     ",  # r19
+    "                         ##########           ########            ### ###### ######     ",  # r20
+    "                         ###########          #######               ######   ######     ",  # r21
+    "                         ############          #######              ######   ######     ",  # r22
+    "                          ###########          #######                  ###   ###       ",  # r23
+    "                          ###########          ####### ##              ###########      ",  # r24
+    "                          ##########           ######  #               ###########      ",  # r25
+    "                          #########           #######  #               ###########      ",  # r26
+    "                          ########            ######                    #########       ",  # r27
+    "                          #######             #####                     #########       ",  # r28
+    "                          ######              ####                       #######     #  ",  # r29
+    "                          #####                                           #####      ###",  # r30
+    "                          ####                                                      ### ",  # r31
+    "                          ###                                                      ###  ",  # r32
+    "                          ###                                                           ",  # r33
+    "                          ##                                                            ",  # r34
+    "                                                                                        ",  # r35
 ]
+WORLD = [row.ljust(88) for row in _WORLD_RAW]
 
 # Pin for every pictured story, as a fraction of the map box:
 # fx = (lon + 180) / 360, fy = (84 - lat) / 144.
@@ -297,13 +298,16 @@ PINS = {
 # ------------------------------------------------------------------ helpers
 
 
-def wrap_to(draw, text, fnt, width):
-    """Greedy word wrap; returns the list of lines that fit width."""
+def wrap_lines(drw, text, fnt, width):
+    """Greedy word wrap: the list of lines of text that fit width."""
     words = text.split()
-    lines, current = [], words[0] if words else ""
+    if not words:
+        return [""]
+    lines = []
+    current = words[0]
     for word in words[1:]:
         trial = current + " " + word
-        if draw.textlength(trial, font=fnt) <= width:
+        if drw.textlength(trial, font=fnt) <= width:
             current = trial
         else:
             lines.append(current)
@@ -312,96 +316,104 @@ def wrap_to(draw, text, fnt, width):
     return lines
 
 
-def block(draw, x, y, text, fnt, fill, width, leading, cap=None):
-    """Draw wrapped text; returns the y just below the last line."""
-    lines = wrap_to(draw, text, fnt, width)
-    shown = lines if cap is None else lines[:cap]
+def draw_paragraph(drw, x, y, text, fnt, fill, width, leading, cap=None):
+    """Wrapped text drawn from (x, y); returns the y below it."""
+    lines = wrap_lines(drw, text, fnt, width)
+    if cap is not None:
+        lines = lines[:cap]
     yy = y
-    for ln in shown:
-        draw.text((x, yy), ln, font=fnt, fill=fill)
+    for ln in lines:
+        drw.text((x, yy), ln, font=fnt, fill=fill)
         yy += leading
     return yy
 
 
-def middle(draw, cx, y, text, fnt, fill):
-    box = draw.textbbox((0, 0), text, font=fnt)
-    draw.text((cx - (box[2] - box[0]) / 2 - box[0], y), text,
-              font=fnt, fill=fill)
+def centered(drw, cx, y, text, fnt, fill):
+    """One line of text centred on cx at height y."""
+    box = drw.textbbox((0, 0), text, font=fnt)
+    text_w = box[2] - box[0]
+    drw.text((cx - text_w / 2 - box[0], y), text, font=fnt, fill=fill)
 
 
-def fit(draw, x, y, text, path, size, width, fill, floor=8):
-    """Draw one line, shrinking the font until it fits the width."""
+def fit_line(drw, x, y, text, path, size, width, fill, floor=8):
+    """One line, its font shrunk step by step until it fits width."""
     s = size
-    while True:
-        fnt = font(path, s)
-        if draw.textlength(text, font=fnt) <= width or s <= floor:
-            break
+    fnt = load_font(path, s)
+    while drw.textlength(text, font=fnt) > width and s > floor:
         s -= 1
-    draw.text((x, y), text, font=fnt, fill=fill)
+        fnt = load_font(path, s)
+    drw.text((x, y), text, font=fnt, fill=fill)
 
 
-def grain(img):
+def add_grain(img):
     """Deterministic paper speckle: a fixed arithmetic lattice of
     slightly darkened pixels, no randomness anywhere."""
     px = img.load()
     w, h = img.size
-    for yy in range(0, h, 2):
-        for xx in range(0, w, 2):
-            if (xx * 41 + yy * 23) % 97 < 2:
+    yy = 0
+    while yy < h:
+        xx = 0
+        while xx < w:
+            if (xx * 41 + yy * 23) % 97 in (0, 1):
                 r, g, b = px[xx, yy]
-                px[xx, yy] = (max(0, r - 7), max(0, g - 7), max(0, b - 7))
+                px[xx, yy] = (max(0, r - 7), max(0, g - 7),
+                              max(0, b - 7))
+            xx += 2
+        yy += 2
     return img
 
 
-def masthead(d, total_line):
-    d.rectangle([EDGE, 15, EDGE + 9, 24], fill=RED)
-    d.text((EDGE + 14, 11), "THE WORLD IN ONE DAY",
-           font=font(SANS_BOLD, 17), fill=RED)
-    rf = font(SANS, 11)
-    tw = d.textlength(total_line, font=rf)
-    d.text((PAGE - EDGE - tw, 16), total_line, font=rf, fill=INK)
-    d.line([EDGE, 39, PAGE - EDGE, 39], fill=INK, width=1)
-    d.line([EDGE, 42, PAGE - EDGE, 42], fill=INK, width=3)
+def page_masthead(drw, total_line):
+    """The compact edition's masthead: red block, name, total, rules."""
+    drw.rectangle([EDGE, 15, EDGE + 9, 24], fill=RED)
+    drw.text((EDGE + 14, 11), "THE WORLD IN ONE DAY",
+             font=load_font(SANS_BOLD, 17), fill=RED)
+    rf = load_font(SANS, 11)
+    tw = drw.textlength(total_line, font=rf)
+    drw.text((PAGE - EDGE - tw, 16), total_line, font=rf, fill=INK)
+    drw.line([EDGE, 39, PAGE - EDGE, 39], fill=INK, width=1)
+    drw.line([EDGE, 42, PAGE - EDGE, 42], fill=INK, width=3)
 
 
-def render_fallback():
+def render_compact():
     """A compact edition of the same page, kept as the safety copy."""
     img = Image.new("RGB", (PAGE, PAGE), PAPER)
-    d = ImageDraw.Draw(img)
-    masthead(d, f"{STORY_COUNT} STORIES · MONDAY 23 NOVEMBER 2026")
-    middle(d, PAGE / 2, 60, DAY, font(SERIF_BOLD, 58), INK)
-    block(d, EDGE, 150, DEK, font(SERIF_ITALIC, 17), RED, SPAN, 22)
-    d.line([EDGE, 190, PAGE - EDGE, 190], fill=INK, width=1)
+    drw = ImageDraw.Draw(img)
+    page_masthead(drw, f"{STORY_COUNT} STORIES · MONDAY 23 NOVEMBER 2026")
+    centered(drw, PAGE / 2, 60, DAY, load_font(SERIF_BOLD, 58), INK)
+    draw_paragraph(drw, EDGE, 150, DEK, load_font(SERIF_ITALIC, 17),
+                   RED, SPAN, 22)
+    drw.line([EDGE, 190, PAGE - EDGE, 190], fill=INK, width=1)
     y = 210
     for hero in HEROES:
-        d.text((EDGE, y), f"{hero['num']}  {hero['tag']}",
-               font=font(SANS_BOLD, 12), fill=RED)
-        y = block(d, EDGE, y + 20, hero["head"], font(SERIF_BOLD, 30),
-                  INK, SPAN, 34, cap=1)
-        y = block(d, EDGE, y + 4, hero["summ"], font(SERIF, 15), INK,
-                  SPAN, 20, cap=2)
+        drw.text((EDGE, y), f"{hero['num']}  {hero['tag']}",
+                 font=load_font(SANS_BOLD, 12), fill=RED)
+        y = draw_paragraph(drw, EDGE, y + 20, hero["head"],
+                           load_font(SERIF_BOLD, 30), INK, SPAN, 34, cap=1)
+        y = draw_paragraph(drw, EDGE, y + 4, hero["summ"],
+                           load_font(SERIF, 15), INK, SPAN, 20, cap=2)
         y += 26
-    d.line([EDGE, y, PAGE - EDGE, y], fill=INK, width=1)
+    drw.line([EDGE, y, PAGE - EDGE, y], fill=INK, width=1)
     cell = SPAN / 6
     for i, (fig, cap) in enumerate(NUMBERS):
         cx = EDGE + cell * i + cell / 2
-        middle(d, cx, y + 14, fig, font(SERIF_BOLD, 28), INK)
-        for j, ln in enumerate(wrap_to(d, cap, font(SANS, 10),
-                                       cell - 14)):
-            middle(d, cx, y + 48 + j * 11, ln, font(SANS, 10), FAINT)
-    d.text((EDGE, PAGE - 40),
-           "Compact edition — the full front page is entry.png.",
-           font=font(SANS, 10), fill=FAINT)
-    return grain(img)
+        centered(drw, cx, y + 14, fig, load_font(SERIF_BOLD, 28), INK)
+        cap_font = load_font(SANS, 10)
+        for j, ln in enumerate(wrap_lines(drw, cap, cap_font, cell - 14)):
+            centered(drw, cx, y + 48 + j * 11, ln, cap_font, FAINT)
+    drw.text((EDGE, PAGE - 40),
+             "Compact edition — the full front page is entry.png.",
+             font=load_font(SANS, 10), fill=FAINT)
+    return add_grain(img)
 
 
-def build():
+def write_fallback():
     here = os.path.dirname(os.path.abspath(__file__))
-    fallback = os.path.join(here, "fallback.png")
-    render_fallback().save(fallback, format="PNG", optimize=True)
-    return fallback
+    target = os.path.join(here, "fallback.png")
+    render_compact().save(target, format="PNG", optimize=True)
+    return target
 
 
 if __name__ == "__main__":
-    path = build()
+    path = write_fallback()
     print(path, os.path.getsize(path))
